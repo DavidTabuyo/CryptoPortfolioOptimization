@@ -29,13 +29,20 @@ def get_crypto_data(crypto_number: int):
                 print(f"No se encontraron datos válidos para la criptomoneda '{crypto_name}'. Se omite.")
                 continue  # Pasar al siguiente identificador sin incrementar su valor
 
+            # Realizar solicitudes adicionales para obtener los datos históricos
+            historical_data = get_historical_data(crypto_name)
+
             # Almacenar los datos en un diccionario
             crypto_info = {
                 "Nombre": crypto_name,
                 "Precio": crypto_price,
                 "Cambio_porcentual_24h": crypto_change_24h,
                 "Capitalizacion_mercado": crypto_market_cap,
-                "Volumen_operaciones_24h": crypto_volume_24h
+                "Volumen_operaciones_24h": crypto_volume_24h,
+                "Precio_max_historico": historical_data.get("Precio_max"),
+                "Precio_min_historico": historical_data.get("Precio_min"),
+                "Volumen_24h_max_historico": historical_data.get("Volumen_24h_max"),
+                "Volumen_24h_min_historico": historical_data.get("Volumen_24h_min")
             }
 
             # Agregar los datos de la criptomoneda a la lista
@@ -46,6 +53,45 @@ def get_crypto_data(crypto_number: int):
     except Exception as e:
         print("Error al obtener datos de la API:", e)
         return None
+
+def get_historical_data(crypto_name: str):
+    # Realizar solicitudes adicionales para obtener los datos históricos
+    historical_url = f"https://min-api.cryptocompare.com/data/v2/histoday"
+    historical_parameters = {
+        "fsym": crypto_name,
+        "tsym": "USD",
+        "limit": 365  # Obtener datos históricos para el último año
+    }
+
+    try:
+        response = requests.get(historical_url, params=historical_parameters)
+        data = response.json()
+        # Extraer los datos históricos
+        historical_prices = [entry["close"] for entry in data["Data"]["Data"]]
+        historical_volumes = [entry["volumeto"] for entry in data["Data"]["Data"]]
+
+        # Calcular los valores máximos y mínimos históricos
+        max_price = max(historical_prices)
+        min_price = min(historical_prices)
+
+        max_volume_24h = max(historical_volumes)
+        min_volume_24h = min(historical_volumes)
+
+        return {
+            "Precio_max": max_price,
+            "Precio_min": min_price,
+            "Volumen_24h_max": max_volume_24h,
+            "Volumen_24h_min": min_volume_24h
+        }
+
+    except Exception as e:
+        print(f"Error al obtener datos históricos para '{crypto_name}':", e)
+        return {
+            "Precio_max": None,
+            "Precio_min": None,
+            "Volumen_24h_max": None,
+            "Volumen_24h_min": None
+        }
 
 def guardar_datos_criptomonedas(datos):
     if datos is None:
