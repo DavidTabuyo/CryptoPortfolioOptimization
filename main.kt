@@ -1,15 +1,10 @@
-
 import kotlin.io.readLine
 import kotlin.text.toInt
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.concurrent.thread
-
-/*
-Añadir los datos normalizados leidos del txt -> añadirlos al objeto + para market cap usar(0,valor del dolar). Así estaría la population acabada
-
-*/
-
+import normalize
+import normalizePercentageChange
 
 
 object User{
@@ -49,14 +44,23 @@ class Crypto(
     val percentageChange24h: Double,
     val marketCap: Double,
     val volume24h: Double,
-    var risk: Double 
+    val normVolume24h:Double,
+    val normPrice:Double,
+    var normMarketCap:Double,
+    var risk: Double ,
+    val maxPrice:Double,
+    val minPrice:Double,
+    val minVolume:Double,
+    val maxVolume:Double,
+    var stability:Double,
     
 ){
     init{
         //when init, we calculate risk
-        risk=calculateRisk()
+        risk=calculateRiskMarketCap()
+        stability= calculateStability()
     }
-    fun calculateRisk():Double{
+    fun calculateRiskMarketCap():Double{
         val weights = when (User.inversionType) {
             User.InversionType.LOW -> Triple(0.4, 0.3, 0.2)
             User.InversionType.MEDIUM -> Triple(0.3, 0.3, 0.2)
@@ -67,23 +71,30 @@ class Crypto(
         val weightMarketCap = weights.third
         val weightVolume24h = 0.1 
 
+        //normalize market cap, we use 0$ as min and BTC+USDT market cap as max: values at 14/03/2024
+        val btcMarketCap= 1432757855151
+        val usdtMarketCap= 103185970233
+        normMarketCap= normalize(marketCap,0.0,(btcMarketCap+usdtMarketCap).toDouble())
+        //normalize percentage change
+        val normalizedPercentageChange= normalizePercentageChange(percentageChange24h)
 
-        // Data normalization (assuming each metric is normalized to a range of 0 to 1)
-        val normalizedPrice = normalize(price,0.0,1.0) // Normalize price
-        val normalizedPercentageChange = normalizePercentageChange(percentageChange24h) // Normalize percentage change
-        val normalizedMarketCap = normalize(marketCap,0.0,1.0) // Normalize market cap
-        val normalizedVolume24h = normalize(volume24h,0.0,1.0) // Normalize volume 24h
-        
+
         // Calculation of the weighted risk factor
-        val riskFactor = (weightPrice * normalizedPrice) + (weightPercentageChange * normalizedPercentageChange) +
-                (weightMarketCap * normalizedMarketCap) + (weightVolume24h * normalizedVolume24h)
+        val riskFactor = (weightPrice * normPrice) + (weightPercentageChange * normalizedPercentageChange) +
+                (weightMarketCap * normMarketCap) + (weightVolume24h * normVolume24h)
         return riskFactor
     }
 
+    fun calculateStability():Double{
+        
+        return 0.0
+    }
     override fun toString(): String {
         return "Crypto(id=$id, name='$name', price=$price, " +
                "percentageChange24h=$percentageChange24h, " +
-               "marketCap=$marketCap, volume24h=$volume24h, risk=$risk)"
+               "marketCap=$marketCap, volume24h=$volume24h, " +
+               "normVolume24h=$normVolume24h, normPrice=$normPrice, " +
+               "normMarketCap=$normMarketCap, risk=$risk)"
     }
 }
 
@@ -142,6 +153,9 @@ fun organizeCryptoInfo(content: String): Int {
     for (line in lines) {
         val (_, dataStr) = line.trim().split(", ", limit=2)
         val dataMap = convertJsontoMap(dataStr)
+        println(dataMap["'Volumen_operaciones_24h'"].toString().toDouble())
+        println(dataMap["'Volumen_24h_min_historico'"].toString().toDouble())
+        println(dataMap["'Volumen_24h_max_historico'"].toString().toDouble())
         val crypto = Crypto(
             id = count, 
             name = dataMap["'Nombre'"] as String,
@@ -149,8 +163,16 @@ fun organizeCryptoInfo(content: String): Int {
             percentageChange24h = dataMap["'Cambio_porcentual_24h'"].toString().toDouble(),
             marketCap = dataMap["'Capitalizacion_mercado'"].toString().toDouble(),
             volume24h = dataMap["'Volumen_operaciones_24h'"].toString().toDouble(),
-            risk = 0.0 
-        )
+            risk = 0.0 ,
+            normVolume24h=normalize(dataMap["'Volumen_operaciones_24h'"].toString().toDouble(),dataMap["'Volumen_24h_min_historico'"].toString().toDouble(),dataMap["'Volumen_24h_max_historico'"].toString().toDouble()),
+            normPrice=normalize(dataMap["'Precio'"].toString().toDouble(),dataMap["'Precio_min_historico'"].toString().toDouble(),dataMap["'Precio_max_historico'"].toString().toDouble()),
+            normMarketCap=0.0,
+            minPrice=dataMap["'Precio_min_historico'"].toString().toDouble() ,
+            maxPrice=dataMap["'Precio_max_historico'"].toString().toDouble() ,
+            minVolume=dataMap["'Volumen_24h_min_historico'"].toString().toDouble() ,
+            maxVolume=dataMap["'Volumen_24h_max_historico'"].toString().toDouble() ,
+            stability=0.0,
+            )
         CryptoData.cryptoData.add(crypto)
         count++
     }
@@ -171,7 +193,7 @@ fun executePythonInfo(crypto_num:Int):Int{
         try{
             ProcessBuilder("python3","crypto_data.py",crypto_num.toString()).start()
             //sleep 5 seconds to generate file
-            Thread.sleep(5000)
+            Thread.sleep(10000)
             println("crypo_data.txt generated... ")
             content = File(fileName).readLines().joinToString("\n")
         }catch(ex:Exception){
@@ -245,6 +267,8 @@ class selectionAlgorithm(analyzeNumber:Int){
             riskWeight=0.2
             diversificationWeight=0.1
         }
+
+
 
         return 0
     }

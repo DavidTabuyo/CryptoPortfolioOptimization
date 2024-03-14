@@ -1,5 +1,9 @@
 import requests
 import sys
+import math
+
+def is_stablecoin(price):
+    return math.isclose(price, 1, rel_tol=0.01)
 
 def get_crypto_data(crypto_number: int):
     url = "https://min-api.cryptocompare.com/data/top/totalvolfull"
@@ -29,8 +33,23 @@ def get_crypto_data(crypto_number: int):
                 print(f"No se encontraron datos válidos para la criptomoneda '{crypto_name}'. Se omite.")
                 continue  # Pasar al siguiente identificador sin incrementar su valor
 
+            # Excluir las stablecoins cuyo precio esté muy cerca de 1
+            if is_stablecoin(crypto_price):
+                print(f"La criptomoneda '{crypto_name}' es una stablecoin. Se omite.")
+                continue
+
             # Realizar solicitudes adicionales para obtener los datos históricos
             historical_data = get_historical_data(crypto_name)
+
+            # Actualizar los valores máximos y mínimos históricos si son mayores o menores que el valor actual
+            if historical_data.get("Precio_max") is not None and historical_data["Precio_max"] < crypto_price:
+                historical_data["Precio_max"] = crypto_price
+            if historical_data.get("Precio_min") is not None and historical_data["Precio_min"] > crypto_price:
+                historical_data["Precio_min"] = crypto_price
+            if historical_data.get("Volumen_24h_max") is not None and historical_data["Volumen_24h_max"] < crypto_volume_24h:
+                historical_data["Volumen_24h_max"] = crypto_volume_24h
+            if historical_data.get("Volumen_24h_min") is not None and historical_data["Volumen_24h_min"] > crypto_volume_24h:
+                historical_data["Volumen_24h_min"] = crypto_volume_24h
 
             # Almacenar los datos en un diccionario
             crypto_info = {
