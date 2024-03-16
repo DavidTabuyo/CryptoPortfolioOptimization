@@ -3,6 +3,8 @@ import java.io.FileNotFoundException
 import kotlin.io.readLine
 import kotlin.random.Random
 import kotlin.text.toInt
+import java.awt.*
+import javax.swing.*
 
 object User {
     // user info
@@ -32,6 +34,12 @@ object User {
         } else {
             cryptoNum = 15
         }
+    }
+}
+object CryptoData {
+    var cryptoData = mutableListOf<Crypto>()
+    override fun toString(): String {
+        return cryptoData.joinToString(separator = "\n")
     }
 }
 
@@ -119,17 +127,64 @@ class Crypto(
                 "normMarketCap=$normMarketCap, risk=$risk, stability=$stability)"
     }
 }
-
-object CryptoData {
-    var cryptoData = mutableListOf<Crypto>()
-    override fun toString(): String {
-        return cryptoData.joinToString(separator = "\n")
-    }
-}
-// population object
+// population class
 class Population(popSize: Int) {
     val size = popSize
     var list: MutableList<MutableList<Int>> = mutableListOf<MutableList<Int>>()
+}
+
+//class to paint first ggaa
+class DividedRectangle(population: Population, numToDisplay: Int) : JPanel() {
+    private val numSections = User.cryptoNum
+    private val random = java.util.Random()
+
+    init {
+        layout = GridLayout(1, numSections + 1) // Aumentar en 1 el número de secciones para agregar una más
+        preferredSize = Dimension(400, 100)
+
+        for (i in 0 until numSections) {
+            val colorPanel = JPanel().apply {
+                background = getRandomColor()
+                layout = GridBagLayout()
+                val textLabel = JLabel(getCryptoName(population.list[0][i])).apply {
+                    horizontalAlignment = SwingConstants.CENTER
+                    verticalAlignment = SwingConstants.CENTER
+                    font = Font("Arial", Font.BOLD, 12)
+                    foreground = Color.WHITE
+                }
+                add(textLabel)
+            }
+            add(colorPanel)
+        }
+
+        val redPanel = JPanel().apply {
+            background = Color.RED
+            layout = GridBagLayout()
+            val textLabel = JLabel(numToDisplay.toString()).apply {
+                horizontalAlignment = SwingConstants.CENTER
+                verticalAlignment = SwingConstants.CENTER
+                font = Font("Arial", Font.BOLD, 12)
+                foreground = Color.WHITE
+            }
+            add(textLabel)
+        }
+        add(redPanel)
+    }
+
+    private fun getRandomColor(): Color {
+        return Color(random.nextInt(256), random.nextInt(256), random.nextInt(256))
+    }
+}
+
+//function to get the crypto name with given int:
+fun getCryptoName(index:Int):String{
+    var name:String=""
+    for (crypto in CryptoData.cryptoData){
+        if (crypto.id==index){
+                name=crypto.name
+        }
+    }
+    return name
 }
 
 // Function to normalize a value to the range of 0 to 1
@@ -228,15 +283,18 @@ fun executePythonInfo(crypto_num: Int): Int {
 
 class selectionAlgorithm(analyzeNumber: Int) {
     // population size
-    val populationSize = 10
+    val populationSize = 200
     // iterationsnum
-    val numIterations = 10
+    val numIterations = 5000
     // mutationrate
-    val mutationRate: Double = 0.5
+    val mutationRate: Double = 0.7
     // crossoverRate
-    val crossoverRate: Double = 0.8
+    val crossoverRate: Double = 0.5
     // elitism 20%
     val elitism = populationSize / 5
+    //frame to paint
+    val frame = JFrame("Selected Cryptos")
+
 
     // Declarations
     val analyzeNumber = analyzeNumber
@@ -287,9 +345,10 @@ class selectionAlgorithm(analyzeNumber: Int) {
 
     // selection function
     fun selection() {
-        population.list.sortByDescending { aptitude(it) }
         // delete duplicates
         deleteDuplicatedChromosome()
+        //sort
+        population.list.sortByDescending { aptitude(it) }
         // cut by population size
         if (population.list.size > populationSize) {
             population.list.dropLast(population.list.size - populationSize)
@@ -424,17 +483,36 @@ class selectionAlgorithm(analyzeNumber: Int) {
                         (diversificationWeight * diversification)
         return aptitude
     }
+    //function to print chromosome
+    fun paintChromosome(index:Int) {
+        SwingUtilities.invokeLater {
+            frame.contentPane.removeAll()
+            frame.add(DividedRectangle(population,index), BorderLayout.CENTER)
+            frame.setSize(800, 300)
+            frame.revalidate()
+            frame.repaint()
+            frame.isVisible = true
+        }
+    }
 
     // program init
     fun init() {
         // get initial population
         inicializatePopulation()
+        var prev:MutableList<Int>
         // begin aagg
         println(population.list)
-        repeat(numIterations) {
+        for (i in 1..numIterations) {
+            prev=population.list[0]
             selection()
+            if(aptitude(prev)!=aptitude(population.list[0])){
+                //if has changed we paint it
+                paintChromosome(i)
+
+            }
             crossover()
             mutate()
+
         }
         println(population.list)
     }
