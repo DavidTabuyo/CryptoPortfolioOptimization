@@ -1,6 +1,7 @@
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.io.readLine
+import kotlin.random.Random
 import kotlin.text.toInt
 
 object User {
@@ -141,21 +142,6 @@ fun normalizePercentageChange(percentageChange: Double): Double {
     return (percentageChange + 100) / 200 // Assuming the percentage change ranges from -100 to 100
 }
 
-fun inicializatePopulation(chromosomeLength: Int, population: Population) {
-    val size = population.size
-    val list: MutableList<MutableList<Int>> = mutableListOf<MutableList<Int>>()
-    for (i in 0 until size) {
-        val innerList = mutableListOf<Int>()
-        for (j in 0 until chromosomeLength) {
-            innerList.add(j)
-        }
-        innerList.shuffle()
-
-        list.add(innerList.subList(0, User.cryptoNum))
-    }
-    population.list = list
-}
-
 fun convertJsontoMap(data: String): Map<String, Any> {
     val map = mutableMapOf<String, Any>()
     val pairs = data.removeSurrounding("{", "}").split(", ")
@@ -223,8 +209,10 @@ fun executePythonInfo(crypto_num: Int): Int {
         println("Creating $fileName from python script...")
         try {
             ProcessBuilder("python3", "crypto_data.py", crypto_num.toString()).start()
-            // sleep 5 seconds to generate file
-            Thread.sleep(10000)
+            // sleep while file is not generated yet
+            while (!File(fileName).exists()) {
+                Thread.sleep(1000)
+            }
             println("crypo_data.txt generated... ")
             content = File(fileName).readLines().joinToString("\n")
         } catch (ex: Exception) {
@@ -242,9 +230,9 @@ class selectionAlgorithm(analyzeNumber: Int) {
     // population size
     val populationSize = 10
     // iterationsnum
-    val numIterations = 1
+    val numIterations = 10
     // mutationrate
-    val mutationRate: Double = 0.1
+    val mutationRate: Double = 0.5
     // crossoverRate
     val crossoverRate: Double = 0.8
     // elitism 20%
@@ -256,16 +244,93 @@ class selectionAlgorithm(analyzeNumber: Int) {
     // create population object
     var population = Population(populationSize)
 
+    // function to inicializate population
+    fun inicializatePopulation() {
+        val size = population.size
+
+        val list: MutableList<MutableList<Int>> = mutableListOf<MutableList<Int>>()
+        for (i in 0 until size) {
+            val innerList = mutableListOf<Int>()
+            for (j in 0 until analyzeNumber) {
+                innerList.add(j)
+            }
+            innerList.shuffle()
+
+            list.add(innerList.subList(0, User.cryptoNum))
+        }
+        population.list = list
+    }
+
+    // delete duplicates function
+    fun deleteDuplicatedChromosome() {
+        val uniqueChromosomes = mutableSetOf<String>()
+        val population_copy = mutableListOf<MutableList<Int>>()
+        for (chromosome in population.list) {
+
+            val sortedChromosome = chromosome.sorted().joinToString(",")
+            // add if not duplicated
+            if (uniqueChromosomes.add(sortedChromosome)) {
+                population_copy.add(chromosome)
+            }
+            population.list = population_copy
+        }
+    }
+    // function to generate new chromosomes
+    fun generateNewChromosome(): MutableList<Int> {
+        val chromosome: MutableList<Int> = mutableListOf()
+        for (j in 0 until User.cryptoNum) {
+            chromosome.add(j)
+        }
+        chromosome.shuffle()
+        return chromosome
+    }
+
     // selection function
     fun selection() {
         population.list.sortByDescending { aptitude(it) }
+        // delete duplicates
+        deleteDuplicatedChromosome()
+        // cut by population size
+        if (population.list.size > populationSize) {
+            population.list.dropLast(population.list.size - populationSize)
+        } else {
+            // if after remove duplicates is less we refill
+            for (index in 0 until populationSize - population.list.size) {
+                population.list.add(generateNewChromosome())
+            }
+        }
     }
 
     // crossover function
     fun crossover() {}
 
+    // random excluding chromosome
+    fun randomExcluding(exclude: MutableList<Int>): Int {
+        var randomNum: Int
+        do {
+            randomNum = Random.nextInt(0, CryptoData.cryptoData.size)
+        } while (exclude.contains(randomNum))
+
+        return randomNum
+    }
+
     // mutate function
-    fun mutate() {}
+    fun mutate() {
+        var index: Int = 0
+        for (chromosome in population.list) {
+            index++
+            // elitism
+            if (index > elitism) {
+                // If  mutation rate
+                if (Random.nextDouble() < mutationRate) {
+                    val firstRandomMutate = Random.nextInt(0, chromosome.size)
+                    val secondRandomMutate = Random.nextInt(0, chromosome.size)
+                    chromosome[firstRandomMutate] = randomExcluding(chromosome)
+                    chromosome[secondRandomMutate] = randomExcluding(chromosome)
+                }
+            }
+        }
+    }
 
     // functions of fitness function
     fun calculatePortfolioVolatility(cryptoList: MutableList<Crypto>): Double {
@@ -362,9 +427,8 @@ class selectionAlgorithm(analyzeNumber: Int) {
 
     // program init
     fun init() {
-        // Begin the genetic algorithm
         // get initial population
-        inicializatePopulation(analyzeNumber, population)
+        inicializatePopulation()
         // begin aagg
         println(population.list)
         repeat(numIterations) {
@@ -372,6 +436,7 @@ class selectionAlgorithm(analyzeNumber: Int) {
             crossover()
             mutate()
         }
+        println(population.list)
     }
 }
 
