@@ -5,6 +5,7 @@ import kotlin.random.Random
 import kotlin.text.toInt
 import java.awt.*
 import javax.swing.*
+import User
 
 object User {
     // user info
@@ -285,11 +286,11 @@ class selectionAlgorithm(analyzeNumber: Int) {
     // population size
     val populationSize = 200
     // iterationsnum
-    val numIterations = 5000
+    val numIterations = 500
     // mutationrate
-    val mutationRate: Double = 0.7
+    val mutationRate: Double = 0.8
     // crossoverRate
-    val crossoverRate: Double = 0.5
+    val crossoverRate: Double = 0.8
     // elitism 20%
     val elitism = populationSize / 5
     //frame to paint
@@ -321,17 +322,17 @@ class selectionAlgorithm(analyzeNumber: Int) {
 
     // delete duplicates function
     fun deleteDuplicatedChromosome() {
-        val uniqueChromosomes = mutableSetOf<String>()
-        val population_copy = mutableListOf<MutableList<Int>>()
+        val uniqueChromosomes = mutableSetOf<Set<Int>>()
+        val populationCopy = mutableListOf<MutableList<Int>>()
+        
         for (chromosome in population.list) {
-
-            val sortedChromosome = chromosome.sorted().joinToString(",")
-            // add if not duplicated
-            if (uniqueChromosomes.add(sortedChromosome)) {
-                population_copy.add(chromosome)
+            val chromosomeSet = chromosome.toSet()
+            if (uniqueChromosomes.add(chromosomeSet)) {
+                populationCopy.add(chromosome)
             }
-            population.list = population_copy
         }
+        
+        population.list = populationCopy
     }
     // function to generate new chromosomes
     fun generateNewChromosome(): MutableList<Int> {
@@ -351,17 +352,64 @@ class selectionAlgorithm(analyzeNumber: Int) {
         population.list.sortByDescending { aptitude(it) }
         // cut by population size
         if (population.list.size > populationSize) {
-            population.list.dropLast(population.list.size - populationSize)
-        } else {
+            population.list = population.list.dropLast(population.list.size - populationSize).toMutableList()
+        } 
+        else {
             // if after remove duplicates is less we refill
             for (index in 0 until populationSize - population.list.size) {
                 population.list.add(generateNewChromosome())
             }
         }
+        
     }
 
     // crossover function
-    fun crossover() {}
+    fun crossover() {
+        for (index in 0..(population.list.size-1)/2 step 2){
+            if(Random.nextDouble()<crossoverRate){
+
+                val firstChromosome= population.list[index]
+                val secondChromosome=population.list[index+1]
+                var firstChild= mutableListOf<Int>()
+                var secondChild= mutableListOf<Int>()
+
+                //forward
+                for(i in 0..User.cryptoNum-1 ){
+                    firstChild.add(firstChromosome[i])
+                    firstChild.add(secondChromosome[i])
+                }
+                //backward
+                for(i in User.cryptoNum-1 downTo 0){
+                    secondChild.add(firstChromosome[i])
+                    secondChild.add(secondChromosome[i])
+                }
+                //delete duplicates
+                firstChild = firstChild.distinct().toMutableList()
+                secondChild = secondChild.distinct().toMutableList()
+                //if is less than User.cryptonum add aleatory
+                while (firstChild.size < User.cryptoNum) {
+                    var randomNumber = (0 until population.size-1).random()
+                    while (randomNumber in firstChild) {
+                        randomNumber = (0 until population.size-1).random()
+                    }
+                    firstChild.add(randomNumber)
+                }
+
+
+                while (secondChild.size < User.cryptoNum) {
+                    var randomNumber = (0 until population.size-1).random()
+                    while (randomNumber in secondChild) {
+                        randomNumber = (0 until population.size-1).random()
+                    }
+                    secondChild.add(randomNumber)
+                }
+                //cut and add to population
+                population.list.add(firstChild.subList(0, User.cryptoNum))
+                population.list.add(secondChild.subList(0, User.cryptoNum))
+            }
+        }
+
+    }
 
     // random excluding chromosome
     fun randomExcluding(exclude: MutableList<Int>): Int {
@@ -501,7 +549,6 @@ class selectionAlgorithm(analyzeNumber: Int) {
         inicializatePopulation()
         var prev:MutableList<Int>
         // begin aagg
-        println(population.list)
         for (i in 1..numIterations) {
             prev=population.list[0]
             selection()
@@ -512,9 +559,8 @@ class selectionAlgorithm(analyzeNumber: Int) {
             }
             crossover()
             mutate()
-
+            println(i)
         }
-        println(population.list)
     }
 }
 
