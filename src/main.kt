@@ -6,12 +6,6 @@ import kotlin.text.toInt
 import java.awt.*
 import javax.swing.*
 import User
-//importsof Jenetics library
-import io.jenetics.Chromosome
-import io.jenetics.Genotype
-import io.jenetics.engine.Engine
-import io.jenetics.engine.EvolutionResult
-import io.jenetics.util.Factory
 
 object User {
     // user info
@@ -193,6 +187,18 @@ fun getCryptoName(index:Int):String{
         }
     }
     return name
+}
+
+//function to get crypto with given int
+fun getCrypto(index:Int):Crypto{
+    var cryptoResult:Crypto=Crypto(-1, "", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,0.0)
+    for (crypto in CryptoData.cryptoData){
+        if(crypto.id==index){
+            cryptoResult= crypto
+            break
+        }
+    }
+    return cryptoResult
 }
 
 // Function to normalize a value to the range of 0 to 1
@@ -571,18 +577,147 @@ class selectionAlgorithm(analyzeNumber: Int) {
         println("---Algoritmo Finalizado---")
     }
     
-    fun getList(): MutableList<Int>{
-        return population.list[0]
+    fun getList(): MutableList<Crypto>{
+        val cryptoList:MutableList<Crypto> = mutableListOf<Crypto>()
+        for(index in population.list[0]){
+            cryptoList.add(getCrypto(index))
+        }
+
+        return cryptoList
     }
 }
 
-class percentageAlgorithm(cryptolist:MutableList<Int>){
+class percentageAlgorithm(cryptolist:MutableList<Crypto>){
+    // population size
+    val populationSize = 10
+    // iterationsnum
+    val numIterations = if (User.inversionType == User.InversionType.HIGH) 1000 else 500
+    // mutationrate
+    val mutationRate: Double = 0.8
+    // crossoverRate
+    val crossoverRate: Double = 0.8
+    // elitism 20%
+    val elitism = populationSize / 5
     //list of selected cryptos
-    //val cryptoList:MutableList<Int>=cryptolist
+    val cryptoList: MutableList<Crypto> = cryptolist
+    // create population object
+    var population = Population(populationSize)
 
-    //In this algorithm I will use jenetics Java library
+    //function to inicializate population
+    fun inicializatePopulation(){
+        val list:MutableList<MutableList<Int>> = mutableListOf<MutableList<Int>>()
+        repeat(populationSize){
+            val randomVal = MutableList(User.cryptoNum) { Random.nextInt(5,50)}
+            //adjust if is higher
+            while(randomVal.sum()>100){
+                val randomIndex = Random.nextInt(0,User.cryptoNum-1)
+                if(randomVal[randomIndex]!=5){
+                    randomVal[randomIndex]-=1
+                }
+            }
+            //adjust if is lower
+            while(randomVal.sum()<100){
+                val randomIndex = Random.nextInt(0,User.cryptoNum-1)
+                randomVal[randomIndex]+=1
+
+            }
+            list.add(randomVal)
+        }
+        population.list=list
+
+    }
+    
+    //function to delete duplicated chromosomes
+    fun deleteDuplicatedChromosome(){
+        TODO()
+    }
+    //function to generate new random chromosome in case of refill
+    fun generateNewChromosome():MutableList<Int>{
+
+        TODO()
+    }
+
+    //selection function
+    fun selection() {
+        // delete duplicates
+        deleteDuplicatedChromosome()
+        //sort
+        population.list.sortByDescending { aptitude(it) }
+        // cut by population size
+        if (population.list.size > populationSize) {
+            population.list = population.list.dropLast(population.list.size - populationSize).toMutableList()
+        } 
+        else {
+            // if after remove duplicates is less we refill
+            for (index in 0 until populationSize - population.list.size) {
+                population.list.add(generateNewChromosome())
+            }
+        }
+        
+    }
+
+    //crossover
+    fun crossover(){
+
+    }
+
+    //aux function for mutation
+    fun getRandomMutated(num:Int):Pair<Int,Int>{
+        var random1= Random.nextInt(5,num/2) 
+        var random2= Random.nextInt(5,num/2)
+
+        while(random1+random2 != num){
+            //adjust until 100
+            if(Random.nextDouble()<0.5){
+                random1++
+            }else{
+                random2++
+            }
+        }
+
+        return Pair(random1, random2)
+    }
+
+    //mutate
+    fun mutate(){
+        for ((index,chromosome) in population.list.withIndex()) {
+            // elitism
+            if (index > elitism) {
+                // If  mutation rate
+                if (Random.nextDouble() < mutationRate) {
+                    var firstRandomMutate=0
+                    var secondRandomMutate=0
+                    do{
+                        firstRandomMutate = Random.nextInt(0, chromosome.size)
+                        secondRandomMutate = Random.nextInt(0, chromosome.size)
+                    }while(firstRandomMutate==secondRandomMutate)
+
+                    val (firstValue,secondValue)= getRandomMutated(chromosome[firstRandomMutate]+chromosome[secondRandomMutate])
+                    chromosome[firstRandomMutate]=firstValue
+                    chromosome[secondRandomMutate]=secondValue
+                }
+            }
+        }
+    }
+    
+    //aptitude function
+    fun aptitude(chromosome:MutableList<Int>):Double{
+        TODO()
+    }
 
     fun init(){
+       //inicializate population
+        inicializatePopulation()
+        //begin aagg
+        /* 
+        repeat(numIterations) { 
+            selection()
+            crossover()
+            mutate()
+         }
+         */
+        
+
 
     }
     
