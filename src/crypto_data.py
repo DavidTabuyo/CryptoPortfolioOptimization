@@ -117,7 +117,7 @@ def guardar_datos_criptomonedas(datos):
         print("No se pudieron obtener los datos de la API.")
         return
 
-    with open("crypto_data.txt", "w") as archivo:
+    with open("data/crypto_data.txt", "w") as archivo:
         identificador = 1
         for criptomoneda in datos:
             nombre = criptomoneda["Nombre"]

@@ -6,6 +6,12 @@ import kotlin.text.toInt
 import java.awt.*
 import javax.swing.*
 import User
+//importsof Jenetics library
+import io.jenetics.Chromosome
+import io.jenetics.Genotype
+import io.jenetics.engine.Engine
+import io.jenetics.engine.EvolutionResult
+import io.jenetics.util.Factory
 
 object User {
     // user info
@@ -134,6 +140,7 @@ class Population(popSize: Int) {
     var list: MutableList<MutableList<Int>> = mutableListOf<MutableList<Int>>()
 }
 
+
 //class to paint first ggaa
 class DividedRectangle(population: Population, numToDisplay: Int) : JPanel() {
     private val numSections = User.cryptoNum
@@ -255,7 +262,7 @@ fun organizeCryptoInfo(content: String): Int {
 
 fun executePythonInfo(crypto_num: Int): Int {
     // firs, we look if the file exists, if not, we call python program to generate it
-    val fileName = "crypto_data.txt"
+    val fileName = "data/crypto_data.txt"
     var content = ""
     try {
         content = File(fileName).readLines().joinToString("\n")
@@ -286,7 +293,7 @@ class selectionAlgorithm(analyzeNumber: Int) {
     // population size
     val populationSize = 200
     // iterationsnum
-    val numIterations = 500
+    val numIterations = if (User.inversionType == User.InversionType.HIGH) 1000 else 500
     // mutationrate
     val mutationRate: Double = 0.8
     // crossoverRate
@@ -559,14 +566,31 @@ class selectionAlgorithm(analyzeNumber: Int) {
             }
             crossover()
             mutate()
-            println(i)
         }
+        //when algorthm finish, we have cryptos selected
+        println("---Algoritmo Finalizado---")
     }
+    
+    fun getList(): MutableList<Int>{
+        return population.list[0]
+    }
+}
+
+class percentageAlgorithm(cryptolist:MutableList<Int>){
+    //list of selected cryptos
+    //val cryptoList:MutableList<Int>=cryptolist
+
+    //In this algorithm I will use jenetics Java library
+
+    fun init(){
+
+    }
+    
 }
 
 fun main() {
     // number of crypto to analyze
-    val analyzeNumber = 20
+    val analyzeNumber = 100
     // number of crypto after analyze
     var afterAnalyze: Int
 
@@ -581,4 +605,7 @@ fun main() {
     // now we can call select crypto genetic algorithm
     val selAlgorithm = selectionAlgorithm(afterAnalyze)
     selAlgorithm.init()
+    val percentageAlgorithm= percentageAlgorithm(selAlgorithm.getList())
+    percentageAlgorithm.init()
+
 }
