@@ -3,6 +3,7 @@ import java.io.FileNotFoundException
 import kotlin.io.readLine
 import kotlin.random.Random
 import kotlin.text.toInt
+import kotlin.collections.MutableList
 import java.awt.*
 import javax.swing.*
 import User
@@ -589,13 +590,13 @@ class selectionAlgorithm(analyzeNumber: Int) {
 
 class percentageAlgorithm(cryptolist:MutableList<Crypto>){
     // population size
-    val populationSize = 10
+    val populationSize = 2
     // iterationsnum
     val numIterations = if (User.inversionType == User.InversionType.HIGH) 1000 else 500
     // mutationrate
-    val mutationRate: Double = 0.8
+    val mutationRate: Double = 0.0
     // crossoverRate
-    val crossoverRate: Double = 0.8
+    val crossoverRate: Double = 1.0
     // elitism 20%
     val elitism = populationSize / 5
     //list of selected cryptos
@@ -629,12 +630,32 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
     
     //function to delete duplicated chromosomes
     fun deleteDuplicatedChromosome(){
-        TODO()
+        val checkDuplicated:MutableSet<MutableList<Int>> = mutableSetOf()
+        val populationCopy:MutableList<MutableList<Int>> = mutableListOf()
+        for (chromosome in population.list){
+            if(checkDuplicated.add(chromosome)){
+                populationCopy.add(chromosome)
+            }
+        }
+        population.list=populationCopy
     }
     //function to generate new random chromosome in case of refill
     fun generateNewChromosome():MutableList<Int>{
+        val randomVal = MutableList(User.cryptoNum) { Random.nextInt(5,50)}
+        //adjust if is higher
+        while(randomVal.sum()>100){
+            val randomIndex = Random.nextInt(0,User.cryptoNum-1)
+            if(randomVal[randomIndex]!=5){
+                randomVal[randomIndex]-=1
+            }
+        }
+        //adjust if is lower
+        while(randomVal.sum()<100){
+            val randomIndex = Random.nextInt(0,User.cryptoNum-1)
+            randomVal[randomIndex]+=1
 
-        TODO()
+        }
+        return randomVal
     }
 
     //selection function
@@ -656,9 +677,40 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
         
     }
 
+    //different implementations of crossover
+    fun crossoverHalf(chromosome1:MutableList<Int>,chromosome2:MutableList<Int>): Pair<MutableList<Int>,MutableList<Int>>{
+        val newChromosome1 = (chromosome1.subList(0, chromosome1.size / 2) + chromosome2.subList(chromosome2.size / 2, chromosome2.size)).toMutableList()
+        val newChromosome2 = (chromosome2.subList(0, chromosome2.size / 2) + chromosome1.subList(chromosome1.size / 2, chromosome1.size)).toMutableList()
+        return Pair(newChromosome1, newChromosome2)
+           
+    }
+    fun crossoverYesNo(chromosome1:MutableList<Int>,chromosome2:MutableList<Int>): Pair<MutableList<Int>,MutableList<Int>>{
+        var newChromosome1: MutableList<Int> = mutableListOf()
+        var newChromosome2: MutableList<Int> = mutableListOf()
+        for (index in 0 until User.cryptoNum){
+            newChromosome1.add(chromosome1[index])
+            newChromosome1.add(chromosome2[index])
+            newChromosome2.add(chromosome2[index])
+            newChromosome2.add(chromosome1[index])
+        }
+
+        return Pair(newChromosome1.subList(0, User.cryptoNum).toMutableList(),newChromosome2.subList(0, User.cryptoNum).toMutableList())
+    }
+
+
     //crossover
     fun crossover(){
+        for (index in 0..(population.list.size-1)/2 step 2){
+            if(Random.nextDouble()<crossoverRate){
+                val (son1,son2) = crossoverHalf(population.list[index],population.list[index+1])
+                val (son3,son4) = crossoverYesNo(population.list[index],population.list[index+1])
+                population.list.add(son1)
+                population.list.add(son2)
+                population.list.add(son3)
+                population.list.add(son4)
 
+            }
+        }
     }
 
     //aux function for mutation
@@ -685,8 +737,8 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
             if (index > elitism) {
                 // If  mutation rate
                 if (Random.nextDouble() < mutationRate) {
-                    var firstRandomMutate=0
-                    var secondRandomMutate=0
+                    var firstRandomMutate:Int
+                    var secondRandomMutate:Int
                     do{
                         firstRandomMutate = Random.nextInt(0, chromosome.size)
                         secondRandomMutate = Random.nextInt(0, chromosome.size)
