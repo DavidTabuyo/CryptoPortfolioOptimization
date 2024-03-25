@@ -7,6 +7,17 @@ import kotlin.collections.MutableList
 import java.awt.*
 import javax.swing.*
 import User
+import kotlin.math.log2
+
+/*
+Algoritmo con 15 it no ejecuta
+Algoritmo no ejecuta script de python
+Pintar resultados
+Gestionar errores -> introducir datos y cerrar ventana
+actualizar script
+*/
+
+
 
 object User {
     // user info
@@ -590,13 +601,13 @@ class selectionAlgorithm(analyzeNumber: Int) {
 
 class percentageAlgorithm(cryptolist:MutableList<Crypto>){
     // population size
-    val populationSize = 2
+    val populationSize = 100
     // iterationsnum
-    val numIterations = if (User.inversionType == User.InversionType.HIGH) 1000 else 500
+    val numIterations = 10000 //if (User.inversionType == User.InversionType.HIGH) 1000 else 500
     // mutationrate
-    val mutationRate: Double = 0.0
+    val mutationRate: Double = 0.1
     // crossoverRate
-    val crossoverRate: Double = 1.0
+    val crossoverRate: Double = 0.8
     // elitism 20%
     val elitism = populationSize / 5
     //list of selected cryptos
@@ -676,13 +687,43 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
         }
         
     }
+    
+    fun adjustChromosomes(chromosome1: MutableList<Int> , chromosome2: MutableList<Int>): Pair<MutableList<Int>,MutableList<Int>>{
+        //adjust chromosme 1
+        while(chromosome1.sum()>100){
+            val randomIndex = Random.nextInt(0,chromosome1.size)
+            if(chromosome1[randomIndex]!=5){
+                chromosome1[randomIndex]--
+            }
+        }
+        while(chromosome1.sum()<100){
+            val randomIndex = Random.nextInt(0,chromosome1.size)
+            chromosome1[randomIndex]++
+        }
+        //adjust chromosme 2
+        while(chromosome2.sum()>100){
+            val randomIndex = Random.nextInt(0,chromosome2.size)
+            if (chromosome2[randomIndex]!=5){
+                chromosome2[randomIndex]--
+            }
+
+        }
+        while(chromosome2.sum()<100){
+            val randomIndex = Random.nextInt(0,chromosome2.size)
+            chromosome2[randomIndex]++
+            
+        }
+        return Pair(chromosome1,chromosome2)
+
+    }
 
     //different implementations of crossover
     fun crossoverHalf(chromosome1:MutableList<Int>,chromosome2:MutableList<Int>): Pair<MutableList<Int>,MutableList<Int>>{
         val newChromosome1 = (chromosome1.subList(0, chromosome1.size / 2) + chromosome2.subList(chromosome2.size / 2, chromosome2.size)).toMutableList()
         val newChromosome2 = (chromosome2.subList(0, chromosome2.size / 2) + chromosome1.subList(chromosome1.size / 2, chromosome1.size)).toMutableList()
-        return Pair(newChromosome1, newChromosome2)
-           
+        
+        return adjustChromosomes(newChromosome1,newChromosome2)
+
     }
     fun crossoverYesNo(chromosome1:MutableList<Int>,chromosome2:MutableList<Int>): Pair<MutableList<Int>,MutableList<Int>>{
         var newChromosome1: MutableList<Int> = mutableListOf()
@@ -694,7 +735,7 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
             newChromosome2.add(chromosome1[index])
         }
 
-        return Pair(newChromosome1.subList(0, User.cryptoNum).toMutableList(),newChromosome2.subList(0, User.cryptoNum).toMutableList())
+        return adjustChromosomes(newChromosome1.subList(0, User.cryptoNum).toMutableList() , newChromosome2.subList(0, User.cryptoNum).toMutableList())
     }
 
 
@@ -711,23 +752,30 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
 
             }
         }
+
     }
 
     //aux function for mutation
     fun getRandomMutated(num:Int):Pair<Int,Int>{
-        var random1= Random.nextInt(5,num/2) 
-        var random2= Random.nextInt(5,num/2)
+        if (num==10){
+            return Pair(5,5)
+        }else if(num==11){
+            return Pair(6,5)
+        }else{
+            var random1= Random.nextInt(5,num/2) 
+            var random2= Random.nextInt(5,num/2)
 
-        while(random1+random2 != num){
-            //adjust until 100
-            if(Random.nextDouble()<0.5){
-                random1++
-            }else{
-                random2++
+            while(random1+random2 != num){
+                //adjust until 100
+                if(Random.nextDouble()<0.5){
+                    random1++
+                }else{
+                    random2++
+                }
             }
-        }
 
-        return Pair(random1, random2)
+            return Pair(random1, random2)
+        }
     }
 
     //mutate
@@ -751,24 +799,67 @@ class percentageAlgorithm(cryptolist:MutableList<Crypto>){
             }
         }
     }
+
+    //function to calculate fault of diversification in portfolio
+    fun calculateShannonEntropy(chromosome: List<Int>): Double {
+        val sum = chromosome.sum().toDouble()
+        val proportions = chromosome.map { it / sum }
+        return proportions.map { -it * log2(it) }.sum()
+    }
+    
     
     //aptitude function
     fun aptitude(chromosome:MutableList<Int>):Double{
-        TODO()
+        // we use diferent aptitude function depending on the inversionType
+        var rentabilityWeight: Double
+        var riskWeight: Double
+        var diversificationWeight: Double
+        // assign weight depending on inversion type
+        if (User.inversionType == User.InversionType.LOW) {
+            rentabilityWeight=0.6
+            riskWeight=0.3
+            diversificationWeight=0.5
+        } else if (User.inversionType == User.InversionType.MEDIUM) {
+            rentabilityWeight=0.5
+            riskWeight=0.4
+            diversificationWeight=0.5
+        } else {
+            rentabilityWeight=0.4
+            riskWeight=0.5
+            diversificationWeight=0.5
+        }
+        //max rentability
+        var totalRent =  0.0
+        for (i in 0 until chromosome.size){
+            totalRent+= cryptoList[i].rentability*chromosome[i]/100
+        }
+        //minimize risk
+        var totalRisk =  0.0
+        for (i in 0 until chromosome.size){
+            totalRisk+= cryptoList[i].risk*chromosome[i]/100
+        }
+        //penalize diversification fault
+        val diversificationPenalty = calculateShannonEntropy(chromosome)
+        //calculate aptitude function
+        val fitness = totalRent * rentabilityWeight - totalRisk * riskWeight + diversificationPenalty * diversificationWeight
+        //return value
+        return fitness
+
     }
 
     fun init(){
        //inicializate population
         inicializatePopulation()
         //begin aagg
-        /* 
+        println("---Empieza el algoritmo de porcentajes---")
         repeat(numIterations) { 
             selection()
             crossover()
             mutate()
-         }
-         */
-        
+        }
+
+        println("---Algoritmo Finalizado---")
+        println(population.list[0])
 
 
     }
